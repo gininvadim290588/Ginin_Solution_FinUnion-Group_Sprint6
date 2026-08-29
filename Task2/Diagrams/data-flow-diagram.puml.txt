@@ -1,0 +1,96 @@
+@startuml
+title FinUnion + RetailBank — Диаграмма потоков данных (DFD), промежуточное состояние (3 мес.)
+
+skinparam rectangle {
+  BackgroundColor<<source>> #EFEFEF
+  BackgroundColor<<mdm>> #D5E8D4
+  BackgroundColor<<analytics>> #DAE8FC
+  BackgroundColor<<external>> #F8CECC
+}
+
+rectangle "FU CRM" as FU_CRM <<source>>
+rectangle "RB CRM" as RB_CRM <<source>>
+rectangle "FU Core" as FU_Core <<source>>
+rectangle "RB Core" as RB_Core <<source>>
+rectangle "FU Cards" as FU_Cards <<source>>
+rectangle "RB Cards" as RB_Cards <<source>>
+rectangle "FU Loans" as FU_Loans <<source>>
+rectangle "RB Loans" as RB_Loans <<source>>
+rectangle "Contact Center /\nCase-система" as CaseSystem <<source>>
+
+rectangle "MDM Customer Hub" as MDM_Client <<mdm>>
+rectangle "MDM Reference Data\n(Продукт, Тариф, Отделение, Контрагент)" as MDM_Ref <<mdm>>
+
+rectangle "DWH" as DWH <<analytics>>
+rectangle "Data Lakehouse" as Lakehouse <<analytics>>
+rectangle "Antifraud /\nGraph DB" as Graph <<analytics>>
+rectangle "Поисковый движок\n(обращения)" as Search <<analytics>>
+rectangle "BI" as BI <<analytics>>
+rectangle "Каталог данных\n(DataHub)" as Catalog <<analytics>>
+rectangle "Объектное хранилище\n(архив)" as ObjStore <<analytics>>
+
+rectangle "Регулятор" as Regulator <<external>>
+rectangle "ФНС / ПФР / БИК ЦБ" as ExtRegistry <<external>>
+
+' --- Клиентские потоки в MDM ---
+FU_CRM --> MDM_Client : Клиент\nCreate/Update (CDC)
+RB_CRM --> MDM_Client : Клиент\nCreate/Update/Deduplicate (CDC)
+MDM_Client --> ExtRegistry : Клиент\nValidate (sync API)
+MDM_Client --> FU_Core : Клиент (golden id)\nRead/Enrich (batch/CDC)
+MDM_Client --> RB_Core : Клиент (golden id)\nRead/Enrich (batch/CDC)
+MDM_Client --> FU_Loans : Клиент (golden id)\nRead/Enrich
+MDM_Client --> RB_Loans : Клиент (golden id)\nRead/Enrich
+MDM_Client --> CaseSystem : Клиент (golden id)\nRead/Enrich
+
+' --- Справочные потоки MDM ---
+FU_CRM --> MDM_Ref : Продукт, Тариф, Отделение\nCreate/Update
+RB_CRM --> MDM_Ref : Продукт, Тариф, Отделение\nCreate/Update
+FU_Core --> MDM_Ref : Контрагент\nCreate
+RB_Core --> MDM_Ref : Контрагент\nCreate
+MDM_Ref --> FU_Core : Продукт, Тариф\nRead (batch/CDC)
+MDM_Ref --> RB_Core : Продукт, Тариф\nRead (batch/CDC)
+MDM_Ref --> FU_Cards : Тариф\nRead
+MDM_Ref --> RB_Cards : Тариф\nRead
+
+' --- Операционные потоки в аналитику ---
+FU_Core --> DWH : Счёт, Транзакция\nAggregate (batch, ночной)
+RB_Core --> DWH : Счёт, Транзакция\nAggregate (batch, ночной)
+FU_Cards --> DWH : Карта, Транзакция\nAggregate (batch/CDC)
+RB_Cards --> DWH : Карта, Транзакция\nAggregate (batch/CDC)
+FU_Loans --> DWH : Кредит\nAggregate (batch)
+RB_Loans --> DWH : Кредит\nAggregate (batch)
+
+FU_Core --> Lakehouse : Транзакция, события\nCreate (streaming/CDC)
+RB_Core --> Lakehouse : Транзакция, события\nCreate (streaming/CDC)
+
+FU_Core --> Graph : Транзакция, Контрагент\nEnrich (streaming, real-time)
+RB_Core --> Graph : Транзакция, Контрагент\nEnrich (streaming, real-time)
+MDM_Ref --> Graph : Контрагент (эталон)\nRead
+
+CaseSystem --> Search : Обращение клиента\nEnrich/Index (near real-time)
+
+' --- Архивирование ---
+FU_Core --> ObjStore : Договор, Счёт (закрытые)\nArchive/Delete из OLTP (batch, квартально)
+RB_Core --> ObjStore : Договор, Счёт (закрытые)\nArchive/Delete из OLTP (batch, квартально)
+
+' --- Отчётность и каталог ---
+DWH --> BI : Read/Aggregate (batch, near real-time дашборды)
+DWH --> Regulator : Регуляторная отчётность\nRead/Aggregate (batch, по регламенту)
+DWH --> Catalog : Метаданные, lineage\nCreate/Update (scheduled scan)
+Lakehouse --> Catalog : Метаданные, lineage\nCreate/Update (scheduled scan)
+MDM_Client --> Catalog : Метаданные золотой записи\nCreate/Update
+MDM_Ref --> Catalog : Метаданные справочников\nCreate/Update
+
+note bottom of MDM_Client
+  MDM выполняет Validate (сверка с внешними
+  реестрами) и Deduplicate перед публикацией
+  золотой записи клиента
+end note
+
+note bottom of Regulator
+  Регулятор — внешний потребитель,
+  получает только агрегированные /
+  регламентированные выгрузки из DWH
+end note
+
+@enduml
