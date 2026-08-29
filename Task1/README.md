@@ -1,4 +1,4 @@
-# Task 1. Анализ данных, сущностей и хранилищ — FinUnion + RetailBank
+# Анализ данных, сущностей и хранилищ — FinUnion + RetailBank
 
 ## Цель
 
