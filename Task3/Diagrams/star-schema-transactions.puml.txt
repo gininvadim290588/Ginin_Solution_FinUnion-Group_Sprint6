@@ -1,0 +1,108 @@
+@startuml
+title Аналитическая область "Транзакции" — схема звезда
+
+entity "fact_transactions" as Fact {
+  * transaction_sk : BIGINT <<PK>>
+  --
+  transaction_id : VARCHAR <<natural key>>
+  date_sk : INT <<FK>>
+  customer_sk : INT <<FK>>
+  account_sk : INT <<FK>>
+  card_sk : INT <<FK, nullable>>
+  product_sk : INT <<FK>>
+  branch_sk : INT <<FK, nullable>>
+  channel_sk : INT <<FK>>
+  counterparty_sk : INT <<FK, nullable>>
+  amount : DECIMAL(18,2)
+  currency : VARCHAR(3)
+  transaction_type : VARCHAR
+  is_fraud_flag : BOOLEAN
+  source_org : VARCHAR  ' FinUnion / RetailBank
+}
+
+entity "dim_date" as DimDate {
+  * date_sk : INT <<PK>>
+  --
+  full_date : DATE
+  year, quarter, month, day
+  is_business_day : BOOLEAN
+}
+
+entity "dim_customer" as DimCustomer {
+  * customer_sk : INT <<PK>>
+  --
+  client_id : VARCHAR <<natural key, из MDM>>
+  segment
+  kyc_status
+  region
+  scd_valid_from / scd_valid_to <<SCD2>>
+}
+
+entity "dim_account" as DimAccount {
+  * account_sk : INT <<PK>>
+  --
+  account_id : VARCHAR <<natural key>>
+  account_type
+  currency
+  open_date
+  status
+}
+
+entity "dim_card" as DimCard {
+  * card_sk : INT <<PK>>
+  --
+  card_id : VARCHAR <<natural key>>
+  card_type
+  payment_system
+  status
+}
+
+entity "dim_product" as DimProduct {
+  * product_sk : INT <<PK>>
+  --
+  product_id : VARCHAR <<natural key, из MDM>>
+  product_name
+  category
+  tariff_code
+  tariff_conditions  ' денормализовано из Тариф
+  scd_valid_from / scd_valid_to <<SCD2>>
+}
+
+entity "dim_branch" as DimBranch {
+  * branch_sk : INT <<PK>>
+  --
+  branch_id : VARCHAR <<natural key>>
+  region
+  status
+}
+
+entity "dim_channel" as DimChannel {
+  * channel_sk : INT <<PK>>
+  --
+  channel_name  ' офис / мобильное / веб
+}
+
+entity "dim_counterparty" as DimCounterparty {
+  * counterparty_sk : INT <<PK>>
+  --
+  counterparty_id : VARCHAR <<natural key, из MDM>>
+  counterparty_type
+  is_sanctioned_flag
+}
+
+Fact }o--|| DimDate
+Fact }o--|| DimCustomer
+Fact }o--|| DimAccount
+Fact }o--|| DimCard
+Fact }o--|| DimProduct
+Fact }o--|| DimBranch
+Fact }o--|| DimChannel
+Fact }o--|| DimCounterparty
+
+note bottom of DimProduct
+  Тариф денормализован внутрь Product —
+  выбрана схема "звезда" (не "снежинка"),
+  чтобы избежать лишнего join на BI-слое
+end note
+
+@enduml
