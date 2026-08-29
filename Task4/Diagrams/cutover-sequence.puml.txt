@@ -1,0 +1,42 @@
+@startuml
+title Cutover-план — Клиентские данные (RB CRM → MDM Customer Hub)
+
+actor "Data Office\n(координатор cutover)" as Coord
+participant "RB CRM" as RB
+participant "FU CRM" as FU
+participant "MDM Customer Hub" as MDM
+participant "Target Core /\nLoans / Cards" as Consumers
+participant "Мониторинг /\nDataHub" as Monitor
+
+Coord -> RB : Подготовка: бэкап, проверка готовности
+Coord -> FU : Подготовка: бэкап, проверка готовности
+Coord -> MDM : Проверка готовности MDM-кластера
+
+Coord -> RB : Data freeze: запрет изменений\nклиентских атрибутов
+Coord -> FU : Data freeze: запрет изменений\nклиентских атрибутов
+note right of RB
+  Операции по счетам/картам продолжаются,
+  заморожены только клиентские атрибуты
+end note
+
+RB -> MDM : Финальная выгрузка (полный снапшот)
+FU -> MDM : Финальная выгрузка (полный снапшот)
+
+MDM -> MDM : Загрузка: матчинг,\nдедупликация, построение\nзолотой записи
+
+Coord -> MDM : Сверка: контрольные суммы,\nбизнес-проверки (кол-во клиентов,\nдоля неразрешённых дублей)
+MDM -> Coord : Отчёт сверки
+
+alt Сверка успешна
+  Coord -> Consumers : Переключение: маршруты чтения\nclient_id переводятся на MDM
+  Coord -> RB : Снятие data freeze\n(RB CRM переходит в read-only\nдля клиентских атрибутов)
+  Coord -> Monitor : Включить пост-cutover мониторинг
+else Сверка выявила критические расхождения
+  Coord -> RB : Фолбэк: возврат потребителей\nна RB CRM / FU CRM как источник
+  Coord -> FU : Фолбэк: снятие data freeze
+  Coord -> Coord : Разбор расхождений,\nповторный запуск cutover
+end
+
+Monitor -> Coord : Метрики: доля матчей,\nошибки чтения golden id,\nжалобы клиентов
+
+@enduml

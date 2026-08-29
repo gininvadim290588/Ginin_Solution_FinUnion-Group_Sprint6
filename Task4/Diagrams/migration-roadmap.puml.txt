@@ -1,0 +1,35 @@
+@startgantt
+title FinUnion + RetailBank — Инкрементальный план миграции (12 месяцев)
+
+Project starts 2026-09-01
+
+-- Промежуточное состояние (0-3 мес.) --
+[Data discovery & инвентаризация] lasts 4 weeks
+[MDM Foundation & клиентский матчинг] lasts 8 weeks
+[MDM Foundation & клиентский матчинг] starts at [Data discovery & инвентаризация]'s start
+[Простой DWH на PostgreSQL и минимальные витрины] lasts 6 weeks
+[Простой DWH на PostgreSQL и минимальные витрины] starts 3 weeks after [Data discovery & инвентаризация]'s start
+[Промежуточная приёмка] lasts 1 week
+[Промежуточная приёмка] starts at [MDM Foundation & клиентский матчинг]'s end
+
+-- Развитие целевой архитектуры (3-9 мес.) --
+[Integration Layer & Kafka/CDC rollout] lasts 8 weeks
+[Integration Layer & Kafka/CDC rollout] starts at [Промежуточная приёмка]'s end
+[Консолидация Core Banking (счета, договоры)] lasts 12 weeks
+[Консолидация Core Banking (счета, договоры)] starts 2 weeks after [Integration Layer & Kafka/CDC rollout]'s start
+[Data Lakehouse: платформа + миграция истории] lasts 14 weeks
+[Data Lakehouse: платформа + миграция истории] starts at [Integration Layer & Kafka/CDC rollout]'s start
+[Консолидация Card и Lending платформ] lasts 12 weeks
+[Консолидация Card и Lending платформ] starts at [Консолидация Core Banking (счета, договоры)]'s start
+
+-- Cutover и завершение (9-12 мес.) --
+[Cutover: Клиентские данные] lasts 2 weeks
+[Cutover: Клиентские данные] starts at [Консолидация Core Banking (счета, договоры)]'s end
+[Cutover: Управленческая/регуляторная отчётность] lasts 2 weeks
+[Cutover: Управленческая/регуляторная отчётность] starts at [Cutover: Клиентские данные]'s end
+[Вывод из эксплуатации систем RetailBank] lasts 4 weeks
+[Вывод из эксплуатации систем RetailBank] starts at [Cutover: Управленческая/регуляторная отчётность]'s end
+[Публикация доменных data-продуктов и governance] lasts 4 weeks
+[Публикация доменных data-продуктов и governance] starts 2 weeks before [Вывод из эксплуатации систем RetailBank]'s end
+
+@endgantt
